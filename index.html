@@ -1,0 +1,1056 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prompter – Editor de prompts</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --border:rgba(255,255,255,.08);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.65);
+      --muted2:rgba(255,255,255,.45);
+      --accent:#6ee7ff;
+      --good:#63f2a0;
+      --warn:#ffd36e;
+      --danger:#ff6e8a;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:14px;
+      --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      --sans:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial,sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background:
+        radial-gradient(1200px 800px at 20% 0%, rgba(110,231,255,.10), transparent 60%),
+        radial-gradient(900px 700px at 80% 30%, rgba(99,242,160,.10), transparent 55%),
+        var(--bg);
+      color:var(--text);
+    }
+    header{
+      position:sticky; top:0; z-index:10;
+      backdrop-filter: blur(10px);
+      background: rgba(11,16,32,.6);
+      border-bottom:1px solid var(--border);
+    }
+    .wrap{max-width:1600px;margin:0 auto;padding:14px 16px}
+    .titlebar{
+      display:flex; align-items:flex-start; justify-content:space-between;
+      gap:12px; flex-wrap:wrap;
+    }
+    h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.2px}
+    .sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.35}
+    .controls{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end;
+    }
+    button, select, .toggle{
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:10px;
+      font-weight:700;
+      font-size:12px;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    select{
+      padding-right:34px;
+      cursor:pointer;
+      outline:none;
+      appearance:none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(255,255,255,.75) 50%),
+        linear-gradient(135deg, rgba(255,255,255,.75) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% - 3px),
+        calc(100% - 13px) calc(50% - 3px);
+      background-size:5px 5px, 5px 5px;
+      background-repeat:no-repeat;
+    }
+    button{cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+    button:hover, select:hover, .toggle:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.14)}
+    button:active{transform:translateY(1px)}
+    button.primary{border-color:rgba(110,231,255,.35);background:rgba(110,231,255,.10)}
+    button.primary:hover{background:rgba(110,231,255,.14);border-color:rgba(110,231,255,.45)}
+    button.good{border-color:rgba(99,242,160,.35);background:rgba(99,242,160,.10)}
+    button.good:hover{background:rgba(99,242,160,.14);border-color:rgba(99,242,160,.45)}
+    button.danger{border-color:rgba(255,110,138,.35);background:rgba(255,110,138,.10)}
+    button.danger:hover{background:rgba(255,110,138,.14);border-color:rgba(255,110,138,.45)}
+    button.warn{border-color:rgba(255,211,110,.35);background:rgba(255,211,110,.10)}
+    button.warn:hover{background:rgba(255,211,110,.14);border-color:rgba(255,211,110,.45)}
+    .toggle{
+      display:flex;gap:10px;align-items:center;padding:10px 12px;cursor:pointer;
+    }
+    .toggle input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+    .toggle small{display:block;color:var(--muted);font-weight:650;margin-top:2px}
+
+    main .wrap{padding-top:16px;padding-bottom:28px}
+    .grid{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:14px}
+    @media (max-width:1100px){.grid{grid-template-columns:1fr}}
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      min-height:72vh;
+      display:flex;
+      flex-direction:column;
+    }
+    .card header{position:static;background:transparent;backdrop-filter:none;border-bottom:1px solid var(--border)}
+    .card .head{padding:12px 12px 10px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .card h2{margin:0;font-size:13px;font-weight:800;letter-spacing:.2px}
+    .card .hint{margin:5px 0 0;font-size:12px;color:var(--muted);line-height:1.35;max-width:70ch}
+    .badge{
+      font-size:11px;color:var(--muted);
+      border:1px solid var(--border);
+      padding:6px 8px;border-radius:999px;
+      background:rgba(255,255,255,.04);
+      white-space:nowrap;align-self:center;
+    }
+    .body{padding:12px;flex:1;display:flex;flex-direction:column;gap:10px}
+    textarea{
+      width:100%; min-height:100%; flex:1; resize:none;
+      border-radius:12px; border:1px solid var(--border);
+      background:rgba(15,23,48,.55);
+      color:var(--text);
+      padding:12px;
+      font-family:var(--mono);
+      font-size:12.5px;
+      line-height:1.45;
+      outline:none;
+      white-space:pre;
+      overflow:auto;
+    }
+    textarea:focus{border-color:rgba(110,231,255,.30);box-shadow:0 0 0 4px rgba(110,231,255,.10)}
+    pre{
+      margin:0; flex:1;
+      border-radius:12px; border:1px solid var(--border);
+      background:rgba(15,23,48,.55);
+      padding:12px;
+      overflow:auto;
+      font-family:var(--mono);
+      font-size:12.5px;
+      line-height:1.45;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    .footerbar{
+      display:flex; gap:10px; justify-content:space-between; align-items:center;
+      border-top:1px solid var(--border);
+      padding:10px 12px;
+      color:var(--muted);
+      font-size:12px;
+      background:rgba(0,0,0,.08);
+      flex-wrap:wrap;
+    }
+    .kpis{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .kpi{
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      padding:6px 8px;border-radius:999px;
+      display:inline-flex;gap:8px;align-items:center;white-space:nowrap;
+    }
+    .dot{width:8px;height:8px;border-radius:999px;background:var(--accent);opacity:.85}
+    .dot.good{background:var(--good)}
+    .dot.warn{background:var(--warn)}
+
+    .mini{font-size:11px;color:var(--muted2);margin-top:6px;line-height:1.35}
+
+    .toast{
+      position:fixed; right:16px; bottom:16px;
+      padding:10px 12px; border-radius:12px;
+      border:1px solid var(--border);
+      background:rgba(16,26,51,.92);
+      color:var(--text);
+      box-shadow:var(--shadow);
+      font-size:12px;
+      opacity:0; transform:translateY(10px);
+      transition: opacity .18s ease, transform .18s ease;
+      pointer-events:none;
+    }
+    .toast.show{opacity:1;transform:translateY(0)}
+
+    /* Modal */
+    .modalBackdrop{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+      z-index: 100;
+    }
+    .modalBackdrop.show{display:flex}
+    .modal{
+      width:min(880px, 100%);
+      border:1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(16,26,51,.98);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modalHeader{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding: 12px 14px;
+      border-bottom:1px solid var(--border);
+    }
+    .modalHeader strong{font-size:13px}
+    .modalBody{padding: 12px 14px}
+    .modalBody textarea{
+      height: 280px;
+      min-height: 220px;
+    }
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 700px){ .row{grid-template-columns: 1fr} }
+    .field label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 750;
+    }
+    .field input{
+      width:100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      outline:none;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .field input:focus{border-color:rgba(110,231,255,.30);box-shadow:0 0 0 4px rgba(110,231,255,.10)}
+    .modalActions{
+      display:flex;
+      gap: 10px;
+      justify-content:flex-end;
+      padding: 12px 14px 14px;
+      border-top:1px solid var(--border);
+      flex-wrap:wrap;
+    }
+
+    /* Import/Export block */
+    .ioBox{
+      border: 1px dashed rgba(255,255,255,.15);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(0,0,0,.10);
+      margin-top: 10px;
+    }
+    .ioBox p{margin:0 0 8px;color:var(--muted);font-size:12px;line-height:1.35}
+    .ioBox textarea{height: 160px}
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="wrap">
+    <div class="titlebar">
+      <div>
+        <h1>Prompter – plantilla → edición → copia</h1>
+        <div class="sub">Ahora con “Mis plantillas” (localStorage): guardar, duplicar, renombrar, borrar, exportar/importar.</div>
+      </div>
+
+      <div class="controls">
+        <select id="templateSelect" title="Elegir plantilla"></select>
+
+        <label class="toggle" title="Normaliza la salida (ideal para pegar en consola)">
+          <input type="checkbox" id="normalizeToggle" checked />
+          <div>
+            Normalizar salida
+            <small>unifica saltos, limpia espacios, colapsa líneas extra</small>
+          </div>
+        </label>
+
+        <button class="primary" id="btnLoadTemplate" title="Cargar plantilla seleccionada en el editor">↩️ Cargar</button>
+        <button class="danger" id="btnClear" title="Vaciar el editor">🧹 Vaciar</button>
+        <button class="good" id="btnCopy" title="Copiar el resultado (derecha) al portapapeles">📋 Copiar</button>
+
+        <button class="warn" id="btnSaveAs" title="Guardar el contenido del editor como plantilla">💾 Guardar como…</button>
+        <button id="btnOverwrite" title="Sobrescribir la plantilla seleccionada (si es editable)">✍️ Sobrescribir</button>
+        <button id="btnDuplicate" title="Duplicar la plantilla seleccionada">📎 Duplicar</button>
+        <button id="btnRename" title="Renombrar plantilla seleccionada">✏️ Renombrar</button>
+        <button class="danger" id="btnDelete" title="Borrar plantilla seleccionada">🗑️ Borrar</button>
+
+        <button id="btnManage" title="Exportar / Importar plantillas">📦 Export/Import</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="grid">
+
+      <!-- Izquierda -->
+      <section class="card">
+        <header>
+          <div class="head">
+            <div>
+              <h2>Plantilla seleccionada (solo lectura)</h2>
+              <p class="hint">La plantilla elegida arriba se muestra aquí. Si es “base”, no se puede sobrescribir.</p>
+            </div>
+            <span class="badge" id="tplBadge">Fija</span>
+          </div>
+        </header>
+        <div class="body">
+          <pre id="templatePre"></pre>
+          <div class="mini" id="tplMeta"></div>
+        </div>
+        <div class="footerbar">
+          <div class="kpis">
+            <span class="kpi"><span class="dot"></span> <span id="tplChars">0</span> chars</span>
+            <span class="kpi"><span class="dot"></span> <span id="tplWords">0</span> palabras</span>
+          </div>
+          <span>Izquierda</span>
+        </div>
+      </section>
+
+      <!-- Centro -->
+      <section class="card">
+        <header>
+          <div class="head">
+            <div>
+              <h2>Editor (editable)</h2>
+              <p class="hint">Edita aquí. La salida (derecha) se actualiza al instante. Puedes guardar como plantilla.</p>
+            </div>
+            <span class="badge">Editable</span>
+          </div>
+        </header>
+        <div class="body">
+          <textarea id="editor" spellcheck="false"></textarea>
+          <div class="mini">Tip: separa secciones con una línea en blanco para guiar el modelo.</div>
+        </div>
+        <div class="footerbar">
+          <div class="kpis">
+            <span class="kpi"><span class="dot good"></span> <span id="edChars">0</span> chars</span>
+            <span class="kpi"><span class="dot good"></span> <span id="edWords">0</span> palabras</span>
+          </div>
+          <span>Centro</span>
+        </div>
+      </section>
+
+      <!-- Derecha -->
+      <section class="card">
+        <header>
+          <div class="head">
+            <div>
+              <h2>Resultado final (para copiar)</h2>
+              <p class="hint">Esto es lo que copia 📋. Con normalizar ON, queda “terminal-friendly”.</p>
+            </div>
+            <span class="badge">Salida</span>
+          </div>
+        </header>
+        <div class="body">
+          <pre id="outputPre"></pre>
+          <div class="mini" id="normInfo"></div>
+        </div>
+        <div class="footerbar">
+          <div class="kpis">
+            <span class="kpi"><span class="dot warn"></span> <span id="outChars">0</span> chars</span>
+            <span class="kpi"><span class="dot warn"></span> <span id="outWords">0</span> palabras</span>
+          </div>
+          <span>Derecha</span>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast">Copiado ✅</div>
+
+<!-- Modal Export/Import -->
+<div class="modalBackdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal">
+    <div class="modalHeader">
+      <strong>Exportar / Importar plantillas</strong>
+      <button id="btnCloseModal">✖️ Cerrar</button>
+    </div>
+    <div class="modalBody">
+      <div class="row">
+        <div>
+          <div class="ioBox">
+            <p><strong>Exportar</strong>: copia este JSON y guárdalo donde quieras.</p>
+            <textarea id="exportArea" spellcheck="false"></textarea>
+            <div class="mini">Incluye solo “Mis plantillas” (no las plantillas base).</div>
+          </div>
+        </div>
+        <div>
+          <div class="ioBox">
+            <p><strong>Importar</strong>: pega aquí un JSON exportado y pulsa “Importar”.</p>
+            <textarea id="importArea" spellcheck="false"></textarea>
+            <div class="modalActions" style="padding:10px 0 0;border-top:none;justify-content:flex-start">
+              <button class="good" id="btnDoImport">⬇️ Importar</button>
+              <button class="danger" id="btnDoImportReplace" title="Reemplaza TODAS tus plantillas por las importadas">⚠️ Importar y reemplazar</button>
+            </div>
+            <div class="mini">Importar normal: mezcla por id, si colisiona renombra. Reemplazar: borra tus plantillas actuales.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modalActions">
+      <button class="good" id="btnCopyExport">📋 Copiar export</button>
+      <button id="btnRefreshExport">🔄 Actualizar export</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ----------------------------
+  // Plantillas base (no se borran)
+  // ----------------------------
+  const BASE_TEMPLATES = [
+    {
+      id: "base_superclaude",
+      name: "SuperClaude / consola-ready (base)",
+      isBase: true,
+      text: `Vamos con una tarea nueva.
+
+ROL
+---
+Actúa como un desarrollador senior que conoce el proyecto y sus patrones.
+Prioriza coherencia de dominio, mantenibilidad y encaje con el código existente.
+
+Antes de escribir código:
+- valida el modelo de datos
+- detecta decisiones de negocio implícitas
+- señala conflictos o edge cases
+- pregunta cualquier duda necesaria
+
+No escribas código hasta que todo esté claro.
+
+
+CONTEXTO
+--------
+Describe el contexto del proyecto, módulos y modelos implicados.
+
+
+OBJETIVO FUNCIONAL
+------------------
+Qué quieres conseguir, en términos de negocio/uso real.
+
+
+MODELO DE NEGOCIO (A VALIDAR)
+----------------------------
+Lista decisiones implícitas y cosas a confirmar (reglas, límites, ambigüedades).
+
+
+FUNCIONAMIENTO ESPERADO
+-----------------------
+Describe cómo se usa (UI/UX si aplica) y qué pantallas/modales/listados.
+
+
+MODELO DE DATOS PROPUESTO (NO DEFINITIVO)
+-----------------------------------------
+Tablas/columnas o entidades/relaciones sugeridas (si aplica).
+Pide validación antes de implementar.
+
+
+REFERENCIAS
+-----------
+Patrones a seguir (archivos del proyecto, módulos similares, estilos).
+
+
+MODO DE EJECUCIÓN
+----------------
+- Pregunta dudas relevantes antes de implementar
+- No muestres explicaciones largas
+- No muestres el código que vas modificando
+- Asume patrones estándar del proyecto
+- Implementa directo cuando esté validado
+
+Y cuando termines, cuéntame un chiste corto.
+`
+    },
+    {
+      id: "base_rapido",
+      name: "Rápido (base)",
+      isBase: true,
+      text: `Tarea nueva.
+
+Contexto (breve):
+- Proyecto / módulo:
+- Ruta(s) / pantalla(s):
+- Modelos implicados:
+
+Objetivo:
+- Implementa: [describe aquí]
+- Debe cumplir: [requisitos imprescindibles]
+
+Restricciones:
+- Asume patrones estándar del proyecto.
+- No expliques, implementa.
+- Si falta un dato crítico, pregunta SOLO 1 vez (lista corta).
+
+Entrega:
+- Dame los archivos/cambios necesarios listos para copiar/pegar.
+`
+    },
+    {
+      id: "base_analisis",
+      name: "Solo análisis (base)",
+      isBase: true,
+      text: `Quiero que analices esta tarea y me ayudes a decidir el mejor enfoque.
+
+Contexto:
+- [describe módulo, modelos, pantallas]
+
+Objetivo:
+- [qué se quiere conseguir]
+
+Antes de escribir código:
+1) Resume el objetivo en 2-3 líneas.
+2) Lista todas las decisiones de negocio que hay que confirmar.
+3) Identifica edge cases / riesgos (datos, UX, permisos, consistencia).
+4) Propón 1-2 enfoques de implementación y elige uno con justificación.
+5) Da una lista de pasos (checklist) para implementar.
+
+No escribas código todavía.
+`
+    },
+    {
+      id: "base_codigo",
+      name: "Solo código (base)",
+      isBase: true,
+      text: `Implementa esta funcionalidad siguiendo los patrones del proyecto.
+
+Contexto:
+- [módulo/modelos/rutas]
+Objetivo:
+- [qué hay que construir]
+Requisitos:
+- [lista corta]
+
+Salida:
+- Devuélveme directamente el código/cambios necesarios.
+- Evita explicaciones.
+`
+    }
+  ];
+
+  // ----------------------------
+  // Persistencia "Mis plantillas"
+  // ----------------------------
+  const LS_KEY = "prompter.user_templates.v1";
+
+  function loadUserTemplates(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed)) return [];
+      // Sanitiza
+      return parsed
+        .filter(x => x && typeof x.id === "string" && typeof x.name === "string" && typeof x.text === "string")
+        .map(x => ({ id: x.id, name: x.name, text: x.text, isBase: false }));
+    }catch{
+      return [];
+    }
+  }
+
+  function saveUserTemplates(list){
+    localStorage.setItem(LS_KEY, JSON.stringify(list.map(t => ({
+      id: t.id, name: t.name, text: t.text
+    }))));
+  }
+
+  function makeId(){
+    // id simple y suficientemente único para local
+    return "u_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+  }
+
+  // ----------------------------
+  // Normalización
+  // ----------------------------
+  function normalizeText(text){
+    let t = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    t = t.split("\n").map(line => line.replace(/[ \t]+$/g, "")).join("\n");
+    t = t.replace(/\n{4,}/g, "\n\n\n");
+    t = t.replace(/^\uFEFF/, "");
+    if (t.length && !t.endsWith("\n")) t += "\n";
+    return t;
+  }
+  function countWords(text){
+    const trimmed = text.trim();
+    if(!trimmed) return 0;
+    return trimmed.split(/\s+/).length;
+  }
+
+  // ----------------------------
+  // UI refs
+  // ----------------------------
+  const elTemplateSelect = document.getElementById("templateSelect");
+  const elNormalizeToggle = document.getElementById("normalizeToggle");
+  const elTemplatePre = document.getElementById("templatePre");
+  const elTplMeta = document.getElementById("tplMeta");
+  const elTplBadge = document.getElementById("tplBadge");
+  const elEditor = document.getElementById("editor");
+  const elOutputPre = document.getElementById("outputPre");
+  const elNormInfo = document.getElementById("normInfo");
+  const toast = document.getElementById("toast");
+
+  const tplChars = document.getElementById('tplChars');
+  const tplWords = document.getElementById('tplWords');
+  const edChars = document.getElementById('edChars');
+  const edWords = document.getElementById('edWords');
+  const outChars = document.getElementById('outChars');
+  const outWords = document.getElementById('outWords');
+
+  // Modal
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const exportArea = document.getElementById("exportArea");
+  const importArea = document.getElementById("importArea");
+
+  // ----------------------------
+  // Data state
+  // ----------------------------
+  let userTemplates = loadUserTemplates();
+
+  function allTemplates(){
+    // orden: base primero, luego usuario
+    return [...BASE_TEMPLATES, ...userTemplates];
+  }
+
+  function getSelectedId(){
+    return elTemplateSelect.value;
+  }
+
+  function getSelectedTemplate(){
+    const id = getSelectedId();
+    return allTemplates().find(t => t.id === id) || BASE_TEMPLATES[0];
+  }
+
+  function setSelectedId(id){
+    elTemplateSelect.value = id;
+  }
+
+  function rebuildSelectOptions(keepSelected=true){
+    const prev = keepSelected ? getSelectedId() : null;
+    const list = allTemplates();
+
+    elTemplateSelect.innerHTML = "";
+
+    // Optgroups
+    const ogBase = document.createElement("optgroup");
+    ogBase.label = "Plantillas base";
+    const ogUser = document.createElement("optgroup");
+    ogUser.label = "Mis plantillas";
+
+    for(const t of list){
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      if(t.isBase) ogBase.appendChild(opt);
+      else ogUser.appendChild(opt);
+    }
+
+    elTemplateSelect.appendChild(ogBase);
+    elTemplateSelect.appendChild(ogUser);
+
+    if(prev && list.some(t => t.id === prev)){
+      elTemplateSelect.value = prev;
+    }else{
+      elTemplateSelect.value = BASE_TEMPLATES[0].id;
+    }
+  }
+
+  function renderTemplateColumn(){
+    const tpl = getSelectedTemplate();
+    elTemplatePre.textContent = tpl.text;
+    elTplBadge.textContent = tpl.isBase ? "Base" : "Usuario";
+    elTplMeta.textContent = tpl.isBase
+      ? "Plantilla base: no se borra. Puedes cargarla al editor y luego guardarla como una nueva."
+      : "Plantilla de usuario: puedes sobrescribir, renombrar, duplicar, exportar o borrar.";
+  }
+
+  function computeOutput(){
+    const raw = elEditor.value;
+    const out = elNormalizeToggle.checked ? normalizeText(raw) : raw;
+    elOutputPre.textContent = out;
+
+    elNormInfo.textContent = elNormalizeToggle.checked
+      ? "Normalización activa: \\n unificados, espacios finales limpiados, líneas en blanco colapsadas, salto final añadido."
+      : "Normalización desactivada: la salida es exactamente lo que escribes en el editor.";
+  }
+
+  function updateKPIs(){
+    const tpl = getSelectedTemplate().text;
+    const ed = elEditor.value;
+    const out = elOutputPre.textContent;
+
+    tplChars.textContent = tpl.length;
+    tplWords.textContent = countWords(tpl);
+
+    edChars.textContent = ed.length;
+    edWords.textContent = countWords(ed);
+
+    outChars.textContent = out.length;
+    outWords.textContent = countWords(out);
+  }
+
+  function refreshAll(){
+    renderTemplateColumn();
+    computeOutput();
+    updateKPIs();
+    updateActionButtons();
+  }
+
+  function showToast(message){
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove("show"), 1200);
+  }
+
+  // ----------------------------
+  // Button states (disable when needed)
+  // ----------------------------
+  function updateActionButtons(){
+    const tpl = getSelectedTemplate();
+    const btnOverwrite = document.getElementById("btnOverwrite");
+    const btnRename = document.getElementById("btnRename");
+    const btnDelete = document.getElementById("btnDelete");
+
+    // No permitir overwrite/rename/delete sobre plantillas base
+    const disabled = tpl.isBase;
+    btnOverwrite.disabled = disabled;
+    btnRename.disabled = disabled;
+    btnDelete.disabled = disabled;
+
+    // Estilo visual simple para disabled
+    for (const b of [btnOverwrite, btnRename, btnDelete]){
+      b.style.opacity = b.disabled ? ".45" : "1";
+      b.style.cursor = b.disabled ? "not-allowed" : "pointer";
+    }
+  }
+
+  // ----------------------------
+  // Actions
+  // ----------------------------
+  function loadSelectedIntoEditor(){
+    elEditor.value = getSelectedTemplate().text;
+    refreshAll();
+    showToast("Cargada ✅");
+    elEditor.focus();
+  }
+
+  function clearEditor(){
+    elEditor.value = "";
+    computeOutput();
+    updateKPIs();
+    showToast("Editor vacío 🧹");
+    elEditor.focus();
+  }
+
+  async function copyOutput(){
+    try{
+      await navigator.clipboard.writeText(elOutputPre.textContent);
+      showToast("Copiado ✅");
+    }catch{
+      const tmp = document.createElement("textarea");
+      tmp.value = elOutputPre.textContent;
+      document.body.appendChild(tmp);
+      tmp.select();
+      document.execCommand("copy");
+      document.body.removeChild(tmp);
+      showToast("Copiado ✅");
+    }
+  }
+
+  function promptName(defaultValue){
+    const name = window.prompt("Nombre de la plantilla:", defaultValue || "");
+    if(name === null) return null; // cancel
+    const trimmed = name.trim();
+    if(!trimmed){
+      showToast("Nombre vacío ❌");
+      return null;
+    }
+    return trimmed;
+  }
+
+  function saveAsNewTemplate(){
+    const name = promptName("Mi plantilla");
+    if(!name) return;
+
+    const newTpl = { id: makeId(), name, text: elEditor.value, isBase: false };
+    userTemplates.unshift(newTpl); // al principio
+    saveUserTemplates(userTemplates);
+    rebuildSelectOptions(false);
+    setSelectedId(newTpl.id);
+    refreshAll();
+    showToast("Guardada 💾");
+  }
+
+  function overwriteSelectedTemplate(){
+    const tpl = getSelectedTemplate();
+    if(tpl.isBase){
+      showToast("No puedes sobrescribir una base ❌");
+      return;
+    }
+    const idx = userTemplates.findIndex(t => t.id === tpl.id);
+    if(idx === -1){
+      showToast("No encontrada ❌");
+      return;
+    }
+    userTemplates[idx].text = elEditor.value;
+    saveUserTemplates(userTemplates);
+    refreshAll();
+    showToast("Sobrescrita ✍️");
+  }
+
+  function duplicateSelectedTemplate(){
+    const tpl = getSelectedTemplate();
+    const name = promptName(`Copia de ${tpl.name}`);
+    if(!name) return;
+
+    const dup = { id: makeId(), name, text: tpl.text, isBase: false };
+    userTemplates.unshift(dup);
+    saveUserTemplates(userTemplates);
+    rebuildSelectOptions(false);
+    setSelectedId(dup.id);
+    refreshAll();
+    showToast("Duplicada 📎");
+  }
+
+  function renameSelectedTemplate(){
+    const tpl = getSelectedTemplate();
+    if(tpl.isBase){
+      showToast("No puedes renombrar una base ❌");
+      return;
+    }
+    const name = promptName(tpl.name);
+    if(!name) return;
+
+    const idx = userTemplates.findIndex(t => t.id === tpl.id);
+    if(idx === -1){
+      showToast("No encontrada ❌");
+      return;
+    }
+    userTemplates[idx].name = name;
+    saveUserTemplates(userTemplates);
+    rebuildSelectOptions(true);
+    refreshAll();
+    showToast("Renombrada ✏️");
+  }
+
+  function deleteSelectedTemplate(){
+    const tpl = getSelectedTemplate();
+    if(tpl.isBase){
+      showToast("No puedes borrar una base ❌");
+      return;
+    }
+    const ok = window.confirm(`¿Borrar plantilla "${tpl.name}"?`);
+    if(!ok) return;
+
+    userTemplates = userTemplates.filter(t => t.id !== tpl.id);
+    saveUserTemplates(userTemplates);
+    rebuildSelectOptions(false);
+    refreshAll();
+    showToast("Borrada 🗑️");
+  }
+
+  // ----------------------------
+  // Export / Import
+  // ----------------------------
+  function openModal(){
+    refreshExportArea();
+    modalBackdrop.classList.add("show");
+    modalBackdrop.setAttribute("aria-hidden", "false");
+  }
+
+  function closeModal(){
+    modalBackdrop.classList.remove("show");
+    modalBackdrop.setAttribute("aria-hidden", "true");
+  }
+
+  function refreshExportArea(){
+    // Exporta solo user templates (sin isBase)
+    exportArea.value = JSON.stringify(userTemplates.map(t => ({
+      id: t.id, name: t.name, text: t.text
+    })), null, 2);
+  }
+
+  async function copyExport(){
+    try{
+      await navigator.clipboard.writeText(exportArea.value);
+      showToast("Export copiado ✅");
+    }catch{
+      const tmp = document.createElement("textarea");
+      tmp.value = exportArea.value;
+      document.body.appendChild(tmp);
+      tmp.select();
+      document.execCommand("copy");
+      document.body.removeChild(tmp);
+      showToast("Export copiado ✅");
+    }
+  }
+
+  function safeParseImport(){
+    try{
+      const raw = importArea.value.trim();
+      if(!raw) return { ok:false, error:"Import vacío" };
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed)) return { ok:false, error:"El JSON debe ser un array" };
+      const clean = parsed
+        .filter(x => x && typeof x.name === "string" && typeof x.text === "string")
+        .map(x => ({
+          id: (typeof x.id === "string" && x.id.trim()) ? x.id : makeId(),
+          name: x.name.trim(),
+          text: x.text
+        }))
+        .filter(x => x.name.length > 0);
+      return { ok:true, data: clean };
+    }catch(e){
+      return { ok:false, error:"JSON inválido" };
+    }
+  }
+
+  function importMerge(){
+    const parsed = safeParseImport();
+    if(!parsed.ok){
+      showToast(parsed.error + " ❌");
+      return;
+    }
+    const incoming = parsed.data;
+
+    // Mezcla por id. Si colisiona en id pero contenido distinto, renombra el incoming.
+    const existingById = new Map(userTemplates.map(t => [t.id, t]));
+    const existingNames = new Set(userTemplates.map(t => t.name.toLowerCase()));
+
+    const merged = [...userTemplates];
+
+    for(const inc of incoming){
+      if(existingById.has(inc.id)){
+        // Colisión id
+        const ex = existingById.get(inc.id);
+        if(ex.text === inc.text && ex.name === inc.name){
+          // mismo, ignora
+          continue;
+        }
+        // renombra y cambia id (para evitar pisar)
+        const newId = makeId();
+        let newName = inc.name;
+        let i = 2;
+        while(existingNames.has(newName.toLowerCase())){
+          newName = `${inc.name} (${i++})`;
+        }
+        existingNames.add(newName.toLowerCase());
+        merged.unshift({ id: newId, name: newName, text: inc.text, isBase:false });
+        continue;
+      }
+
+      // Evita colisión de nombre
+      let name = inc.name;
+      let i = 2;
+      while(existingNames.has(name.toLowerCase())){
+        name = `${inc.name} (${i++})`;
+      }
+      existingNames.add(name.toLowerCase());
+
+      merged.unshift({ id: inc.id, name, text: inc.text, isBase:false });
+      existingById.set(inc.id, merged[0]);
+    }
+
+    userTemplates = merged;
+    saveUserTemplates(userTemplates);
+    rebuildSelectOptions(true);
+    refreshAll();
+    refreshExportArea();
+    showToast("Importado ✅");
+  }
+
+  function importReplace(){
+    const parsed = safeParseImport();
+    if(!parsed.ok){
+      showToast(parsed.error + " ❌");
+      return;
+    }
+    const ok = window.confirm("Esto reemplazará TODAS tus plantillas actuales. ¿Continuar?");
+    if(!ok) return;
+
+    userTemplates = parsed.data.map(x => ({...x, isBase:false}));
+    saveUserTemplates(userTemplates);
+    rebuildSelectOptions(false);
+    refreshAll();
+    refreshExportArea();
+    showToast("Reemplazadas ✅");
+  }
+
+  // ----------------------------
+  // Init
+  // ----------------------------
+  function init(){
+    rebuildSelectOptions(false);
+    // Selecciona la primera base por defecto
+    setSelectedId(BASE_TEMPLATES[0].id);
+
+    // Pone en editor la plantilla actual (base)
+    elEditor.value = getSelectedTemplate().text;
+
+    refreshAll();
+
+    // Eventos
+    elEditor.addEventListener("input", () => {
+      computeOutput();
+      updateKPIs();
+    });
+
+    elTemplateSelect.addEventListener("change", () => {
+      renderTemplateColumn();
+      updateKPIs();
+      updateActionButtons();
+      showToast(`Plantilla: ${getSelectedTemplate().name}`);
+    });
+
+    elNormalizeToggle.addEventListener("change", () => {
+      computeOutput();
+      updateKPIs();
+      showToast(elNormalizeToggle.checked ? "Normalizar ON ✅" : "Normalizar OFF");
+    });
+
+    document.getElementById("btnLoadTemplate").addEventListener("click", loadSelectedIntoEditor);
+    document.getElementById("btnClear").addEventListener("click", clearEditor);
+    document.getElementById("btnCopy").addEventListener("click", copyOutput);
+
+    document.getElementById("btnSaveAs").addEventListener("click", saveAsNewTemplate);
+    document.getElementById("btnOverwrite").addEventListener("click", overwriteSelectedTemplate);
+    document.getElementById("btnDuplicate").addEventListener("click", duplicateSelectedTemplate);
+    document.getElementById("btnRename").addEventListener("click", renameSelectedTemplate);
+    document.getElementById("btnDelete").addEventListener("click", deleteSelectedTemplate);
+
+    document.getElementById("btnManage").addEventListener("click", openModal);
+    document.getElementById("btnCloseModal").addEventListener("click", closeModal);
+    modalBackdrop.addEventListener("click", (e) => {
+      if(e.target === modalBackdrop) closeModal();
+    });
+    window.addEventListener("keydown", (e) => {
+      if(e.key === "Escape" && modalBackdrop.classList.contains("show")) closeModal();
+    });
+
+    document.getElementById("btnRefreshExport").addEventListener("click", () => {
+      refreshExportArea();
+      showToast("Export actualizado 🔄");
+    });
+    document.getElementById("btnCopyExport").addEventListener("click", copyExport);
+    document.getElementById("btnDoImport").addEventListener("click", importMerge);
+    document.getElementById("btnDoImportReplace").addEventListener("click", importReplace);
+  }
+
+  init();
+</script>
+</body>
+</html>
