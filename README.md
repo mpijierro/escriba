@@ -63,6 +63,10 @@ En **📦 Export/Import** puedes:
 
 ---
 
+Desde Cáceres con ❤️ por [**Manu Pijierro**](https://mandev.es)
+
+---
+
 ## 🖼️
 
 ![Escriba](./escriba.png)

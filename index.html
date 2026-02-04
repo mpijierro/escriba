@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Prompter – Editor de prompts</title>
+  <title>Escriba – Editor de prompts</title>
   <style>
     :root{
       --bg:#0b1020;
@@ -252,6 +252,18 @@
     }
     .ioBox p{margin:0 0 8px;color:var(--muted);font-size:12px;line-height:1.35}
     .ioBox textarea{height: 160px}
+
+    .escriba-footer a{
+      color: rgba(255,255,255,.75);
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .escriba-footer a:hover{
+      color: #ff6e8a;
+      text-decoration: underline;
+    }
+
   </style>
 </head>
 
@@ -260,7 +272,7 @@
   <div class="wrap">
     <div class="titlebar">
       <div>
-        <h1>Prompter – plantilla → edición → copia</h1>
+        <h1>Escriba – plantilla → edición → copia</h1>
         <div class="sub">Ahora con “Mis plantillas” (localStorage): guardar, duplicar, renombrar, borrar, exportar/importar.</div>
       </div>
 
@@ -1052,5 +1064,12 @@ Salida:
 
   init();
 </script>
+
+<footer class="escriba-footer" style="text-align: center">
+  Desde Cáceres con ❤️ por
+  <a href="https://mandev.es" target="_blank" rel="noopener noreferrer">
+    <strong>Manu Pijierro</strong>
+  </a>
+</footer>
 </body>
 </html>
